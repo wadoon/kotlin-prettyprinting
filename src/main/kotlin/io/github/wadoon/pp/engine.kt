@@ -51,6 +51,13 @@ object Engine {
         }
     }
 
+    @JvmStatic
+    fun prettyQ(doc: Document, width: Int = 80, rfrac: Double = 1.0, indent: Int = 0, flatten: Boolean = false): String =
+        StringWriter().let {
+            prettyQ(doc, PrintWriter(it), State(width, rfrac), indent, flatten)
+            it.toString()
+        }
+
     /**
      *
      */

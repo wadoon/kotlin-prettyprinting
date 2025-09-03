@@ -1,4 +1,3 @@
-import io.github.wadoon.pp.Engine;
 import io.github.wadoon.pp.PPUtils;
 import org.junit.jupiter.api.Test;
 
@@ -9,6 +8,5 @@ import org.junit.jupiter.api.Test;
  */
 public class JavaTest {
     @Test
-    public void test() {
-    }
+    public void test() {}
 }

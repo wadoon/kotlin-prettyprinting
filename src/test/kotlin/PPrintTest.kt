@@ -6,46 +6,7 @@ import com.google.common.truth.Truth
 import com.google.common.truth.Truth.assertThat
 import io.github.wadoon.pp.*
 import io.github.wadoon.pp.Engine.pretty
-import io.github.wadoon.pp.PPUtils.align
-import io.github.wadoon.pp.PPUtils.ampersand
-import io.github.wadoon.pp.PPUtils.at
-import io.github.wadoon.pp.PPUtils.backslash
-import io.github.wadoon.pp.PPUtils.bang
-import io.github.wadoon.pp.PPUtils.bar
-import io.github.wadoon.pp.PPUtils.blank
-import io.github.wadoon.pp.PPUtils.braces
-import io.github.wadoon.pp.PPUtils.break0
-import io.github.wadoon.pp.PPUtils.break1
-import io.github.wadoon.pp.PPUtils.caret
-import io.github.wadoon.pp.PPUtils.comma
-import io.github.wadoon.pp.PPUtils.dollar
-import io.github.wadoon.pp.PPUtils.dot
-import io.github.wadoon.pp.PPUtils.empty
-import io.github.wadoon.pp.PPUtils.equals
-import io.github.wadoon.pp.PPUtils.group
-import io.github.wadoon.pp.PPUtils.grouped
-import io.github.wadoon.pp.PPUtils.hang
-import io.github.wadoon.pp.PPUtils.hardline
-import io.github.wadoon.pp.PPUtils.jump
-import io.github.wadoon.pp.PPUtils.langle
-import io.github.wadoon.pp.PPUtils.lbrace
-import io.github.wadoon.pp.PPUtils.lparen
-import io.github.wadoon.pp.PPUtils.minus
-import io.github.wadoon.pp.PPUtils.multilineTextblock
-import io.github.wadoon.pp.PPUtils.nest
-import io.github.wadoon.pp.PPUtils.plus
-import io.github.wadoon.pp.PPUtils.qmark
-import io.github.wadoon.pp.PPUtils.range
-import io.github.wadoon.pp.PPUtils.rangle
-import io.github.wadoon.pp.PPUtils.rejoin
-import io.github.wadoon.pp.PPUtils.repeat
-import io.github.wadoon.pp.PPUtils.rparen
-import io.github.wadoon.pp.PPUtils.sharp
-import io.github.wadoon.pp.PPUtils.star
-import io.github.wadoon.pp.PPUtils.string
-import io.github.wadoon.pp.PPUtils.surroundSeparateMap
-import io.github.wadoon.pp.PPUtils.tilde
-import io.github.wadoon.pp.PPUtils.underscore
+import io.github.wadoon.pp.Engine.prettyQ
 import kotlin.test.Test
 
 /**
@@ -122,50 +83,89 @@ class PPrintTest {
 
     @Test
     fun testAlign() {
-        val d = rejoin("int i = function") +
+        val d = tokenize("int i = function") +
             align(
                 listOf(1, 2, 3).surroundSeparateMap(opening = lparen, closing = rparen, indent = 1) {
                     string("argument_$it")
                 },
-            ) + PPUtils.semi
-        assertPretty(d, 15)
-            .isEqualTo(
-                """
+            ) + semi
+        assertPretty(
+            d,
+            """
                 int i = function(
                                  argument_1,
                                  argument_2,
                                  argument_3
                                  );
-                """.trimIndent(),
-            )
+            """.trimIndent(),
+            width = 15,
+        )
     }
 
     @Test
-    fun `test range`() {
-        assertPretty(rejoin("a b c d").range { println(it) })
-            .isEqualTo("a b c d")
+    fun testRange() {
+        assertPretty(
+            rejoin("a b c d").range { println(it) },
+            "a b c d",
+        )
     }
 
     @Test
-    fun `test hang`() {
-        assertPretty(hang(20, string("abc")))
-            .isEqualTo("")
+    fun testHang() {
+        val h = hang(4, string("hanged"))
+        val line = nest(
+            4,
+            (words("AAA BBB CCC DDD") + h).joinToDocument(hardline),
+        )
+
+        assertPretty(
+            words("AAA BBB CCC DDD").joinToDocument(hardline),
+            """
+            AAA
+            BBB
+            CCC
+            DDD
+            """.trimIndent(),
+        )
+
+        assertPretty(
+            line,
+            """
+            AAA
+                BBB
+                CCC
+                DDD
+                hanged
+            """.trimIndent(),
+        )
+    }
+
+    @Test
+    fun `join document`() {
+        assertPretty(hardline).isEqualTo("\n")
+
+        val byhand = string("AAA") + hardline + string("BBB")
+        assertPretty(
+            byhand,
+            """
+                AAA
+                BBB
+            """.trimIndent(),
+        )
+
+        assertThat(words("AAA BBB").joinToDocument(hardline))
+            .isEqualTo(byhand)
     }
 
     @Test
     fun repeat() {
-        val d = string("xxx").repeat(25)
-        assertThat(
-            pretty(
-                d,
-                20,
-            ),
-        ).isEqualTo("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        assertThat(sharp.repeat(0)).isEqualTo(empty)
+        assertThat(sharp.repeat(1)).isEqualTo(sharp)
+        assertPretty(sharp.repeat(1), "#")
 
-        assertPretty(sharp.repeat(0)).isEqualTo(empty)
-        assertPretty(sharp.repeat(1)).isEqualTo(sharp)
+        val d = string("x").repeat(11)
+        assertPretty(d, "xxxxxxxxxxx", 11)
 
-        assertPretty(sharp.repeat(1)).isEqualTo("#")
         val e = group((string("xxx") + break0).repeat(5))
         assertThat(pretty(e, 20)).isEqualTo("xxxxxxxxxxxxxxx")
     }
@@ -218,7 +218,7 @@ class PPrintTest {
     fun funcCallLike() {
         val d = rejoin("int i = function") + listOf(1, 2, 3).surroundSeparateMap(opening = lparen, closing = rparen, indent = 2) {
             string("argument_$it")
-        } + PPUtils.semi
+        } + semi
         println(pretty(d))
 
         val fc = rejoin("func") + listOf(1, 2, 3).surroundSeparateMap(opening = lparen, closing = rparen, indent = 2) {
@@ -227,18 +227,28 @@ class PPrintTest {
 
         val e = rejoin("bool i = next") + listOf(fc, fc, fc).surroundSeparateMap(opening = lparen, closing = rparen, indent = 2) {
             it.grouped()
-        } + PPUtils.semi
+        } + semi
         println(pretty(e))
     }
 
     @Test
     fun testJump() {
-        val d = rejoin("int i =") + jump(rejoin("2 ;"), 20, 30)
-        assertPretty(d, width = 40)
-            .isEqualTo("int i =                              2 ;")
-        assertPretty(d, width = 20)
-            .isEqualTo("int i =\n                    2 ;")
+        val d = tokenize("int i =") + jump(tokenize("2;"), 20, 30)
+        assertPretty(d, "int i =                              2;", width = 40)
+        assertPretty(d, "int i =\n                    2;", width = 20)
+
+        assertThat(jump(d)).isEqualTo(d.jumped())
+    }
+
+    private fun assertPretty(d: Document, expected: String, width: Int = 40) {
+        assertThat(pretty(d, width = width)).isEqualTo(expected)
+        assertThat(prettyQ(d, width = width)).isEqualTo(expected)
     }
 
     private fun assertPretty(d: Document, width: Int = 40) = assertThat(pretty(d, width = width))
+
+    @Test
+    fun testConcatMap() {
+        assertPretty(concat(words("a b c d")), "abcd")
+    }
 }

@@ -18,6 +18,7 @@ plugins {
 
 group = "io.github.wadoon"
 version = "1.0-SNAPSHOT"
+description = "Pretty-printing library in pure Kotlin"
 
 repositories {
     mavenCentral()
@@ -53,8 +54,12 @@ dokka {
             remoteUrl("https://github.com/wadoon/kotlin-prettyprinting")
             remoteLineSuffix.set("#L")
         }
-        includes.from("README.md")
+        // includes.from("README.md")
     }
+}
+
+jacoco {
+    toolVersion = "0.8.13"
 }
 
 tasks.test {
@@ -100,20 +105,30 @@ tasks.withType<KotlinCompile> {
     }
 }
 
+tasks.withType<Javadoc> {
+    isFailOnError = false
+}
+
 java {
     withJavadocJar()
     withSourcesJar()
 }
 
-tasks.withType<Javadoc> {
-    isFailOnError = false
+tasks.named<Jar>("javadocJar") {
+    from(tasks.named("dokkaGenerateJavadoc"))
+    // from(tasks.named("dokkaGenerateHtml"))
 }
+
+/*tasks.named<Jar>("javadocJar") {
+    val dokkaJavadoc = tasks.named<DokkaGeneratePublicationTask>("dokkaGeneratePublicationJavadoc")
+    dependsOn(dokkaJavadoc)
+    from(dokkaJavadoc.flatMap { it.outputDirectory })
+}*/
 
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
-//            from(components["kotlin"])
 
             repositories {
                 maven {
@@ -123,7 +138,7 @@ publishing {
             }
 
             pom {
-                name = "kotlin-prettyprinting"
+                name = project.name
                 description = project.description
                 url = "https://github.com/wadoon/kotlin-prettyprinting"
                 licenses {
