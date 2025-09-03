@@ -1,3 +1,7 @@
+/* This file is part of kotlin-prettyprinting.
+ * kotlin-prettyprinting is licensed under the GNU General Public License Version 2
+ * SPDX-License-Identifier: GPL-2.0-only
+ */
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -9,6 +13,7 @@ plugins {
     signing
     jacoco
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
+    id("com.diffplug.spotless") version "7.2.1"
 }
 
 group = "io.github.wadoon"
@@ -22,11 +27,10 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("com.google.truth:truth:1.4.4")
 
-    //dokkaPlugin("com.glureau:html-mermaid-dokka-plugin:0.6.0")
-    //dokkaPlugin("org.jetbrains.dokka:mathjax-plugin:2.0.0")
-    //dokkaHtmlPlugin("org.jetbrains.dokka:kotlin-as-java-plugin:2.0.0")
+    // dokkaPlugin("com.glureau:html-mermaid-dokka-plugin:0.6.0")
+    // dokkaPlugin("org.jetbrains.dokka:mathjax-plugin:2.0.0")
+    // dokkaHtmlPlugin("org.jetbrains.dokka:kotlin-as-java-plugin:2.0.0")
 }
-
 
 tasks.withType<Test> {
     useJUnitPlatform()
@@ -118,7 +122,6 @@ publishing {
                 }
             }
 
-
             pom {
                 name = "kotlin-prettyprinting"
                 description = project.description
@@ -164,4 +167,23 @@ nexusPublishing {
 signing {
     useGpgCmd()
     sign(publishing.publications["mavenJava"])
+}
+
+spotless {
+    kotlin {
+        target("**/*.kt", "**/*.kts")
+        licenseHeader(
+            """
+                |/* This file is part of kotlin-prettyprinting.
+                | * kotlin-prettyprinting is licensed under the GNU General Public License Version 2
+                | * SPDX-License-Identifier: GPL-2.0-only
+                | */
+            """.trimMargin(),
+        ).delimiter("^(package |@file|import |plugins )")
+        val editorConfigPath = File(rootDir, ".editorconfig")
+        ktlint("1.7.1")
+            .setEditorConfigPath(editorConfigPath)
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
 }
