@@ -19,7 +19,7 @@ import java.util.*
  * to render documents without backtracking or buffering.
  *
  * The [State] record is never copied; it is just threaded through. In
- * addition to it, the parameters [indent] and [flatten] influence the
+ * addition to it, the parameters `indent` and [flatten] influence the
  * manner in which the document is rendered.
  *
  * The code is written in tail-recursive style, so as to avoid running out of
@@ -86,14 +86,14 @@ object Engine {
             }
 
             is Document.FancyString -> {
-                output.print(doc.s.substring(doc.ofs.toInt(), doc.len.toInt()))
+                output.print(doc.s.substring(doc.ofs, doc.len))
                 state.column += doc.apparentLength
                 /* assert (ok state flatten); */
                 proceed(cont)
             }
 
             is Document.Blank -> {
-                output.print(" ".repeat(doc.len.toInt()))
+                output.print(" ".repeat(doc.len))
                 state.column += doc.len
                 /* assert (ok state flatten); */
                 proceed(cont)
@@ -106,7 +106,7 @@ object Engine {
                 require(!flatten)
                 /* Emit a hardline. */
                 output.print("\n")
-                output.print(" ".repeat(indent.toInt()))
+                output.print(" ".repeat(indent))
                 state.line += 1
                 state.column = indent
                 state.lastIndent = indent
@@ -207,14 +207,14 @@ object Engine {
             }
 
             is Document.FancyString -> {
-                output.print(doc.s.substring(doc.ofs.toInt(), doc.len.toInt()))
+                output.print(doc.s.substring(doc.ofs, doc.len))
                 state.column += doc.apparentLength
                 /* assert (ok state flatten); */
                 proceed(output, state, cont)
             }
 
             is Document.Blank -> {
-                output.print(" ".repeat(doc.len.toInt()))
+                output.print(" ".repeat(doc.len))
                 state.column += doc.len
                 /* assert (ok state flatten); */
                 proceed(output, state, cont)
@@ -227,7 +227,7 @@ object Engine {
                 require(!flatten)
                 /* Emit a hardline. */
                 output.print("\n")
-                output.print(" ".repeat(indent.toInt()))
+                output.print(" ".repeat(indent))
                 state.line += 1
                 state.column = indent
                 state.lastIndent = indent
@@ -300,7 +300,7 @@ object Engine {
     fun pretty(output: PrintWriter, state: State, indent: Int, flatten: Boolean, doc: Document) =
         pretty(output, state, indent, flatten, doc, KNil)
 
-    @JvmStatic
+    @JvmStatic @JvmOverloads
     fun pretty(doc: Document, width: Int = 80, rfrac: Double = 1.0, indent: Int = 0, flatten: Boolean = false): String =
         pretty(doc, State(width, rfrac), indent, flatten)
 
@@ -333,12 +333,12 @@ object Engine {
             }
 
             is Document.FancyString -> {
-                output.print(doc.s.substring(doc.ofs.toInt(), doc.len.toInt()))
+                output.print(doc.s.substring(doc.ofs, doc.len))
                 proceedCompact(output, cont)
             }
 
             is Document.Blank -> {
-                output.print(" ".repeat(doc.len.toInt()))
+                output.print(" ".repeat(doc.len))
                 proceedCompact(output, cont)
             }
 

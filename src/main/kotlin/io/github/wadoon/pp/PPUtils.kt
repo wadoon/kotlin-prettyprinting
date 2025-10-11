@@ -309,6 +309,7 @@ fun <A, B> Iterable<A>.foldli(accu: B, f: (Int, B, A) -> B): B = foldIndexed(acc
  * it goes down, effectively reversing the list again.
  */
 fun concat(docs: List<Document>) = docs.fold(empty, ::cat)
+fun concat(vararg docs: Document) = concat(docs.toList())
 
 /**
  *
@@ -324,7 +325,7 @@ fun <T> List<T>.concatMap(f: (T) -> Document) = map(f).reduce(::cat)
 
 fun <T> List<T>.joinToDocument(sep: Document = empty, f: (T) -> Document) = separateMap(sep, f)
 
-fun <T> List<T>.separateMap(sep: Document = empty, f: (T) -> Document) = foldli(empty) { i, accu: Document, x: T ->
+fun <T> Collection<T>.separateMap(sep: Document = empty, f: (T) -> Document) = foldli(empty) { i, accu: Document, x: T ->
     if (i == 0) {
         f(x)
     } else {
@@ -361,7 +362,7 @@ fun lines(s: String) = s.split("\n").map { string(it) }
 fun multilineTextblock(s: String) = lines(s).joinToDocument(break1)
 
 /** [split] splits the string [s] at every occurrence of a character
- * that satisfies the predicate [ok]. The substrings thus obtained are
+ * that satisfies the predicate `ok`. The substrings thus obtained are
  * turned into documents, and a list of documents is returned. No information
  * is lost: the concatenation of the documents yields the original string.
  */
@@ -387,6 +388,7 @@ fun words(s: String): List<Document.String> = s.split("\\s+".toRegex()).map { it
 /**
  *
  */
+@JvmOverloads
 fun tokenize(s: String, delim: String = " \t\n\r();[],!+-*/.,&%$§?"): Document {
     val seq = StringTokenizer(s, delim, true).asSequence().map { it as String }.toList()
     return seq.joinToDocument {
@@ -475,6 +477,7 @@ infix fun Document.prefixed(y: Document) = prefix(2, 1, this, y)
  * @param indent indentation for each line
  * @param space number of spaces before [x]
  */
+@JvmOverloads
 fun jump(x: Document, indent: Int = 0, space: Int = 0) = group(
     nest(
         indent,
@@ -483,6 +486,7 @@ fun jump(x: Document, indent: Int = 0, space: Int = 0) = group(
 )
 
 /** @see jump */
+@JvmOverloads
 fun Document.jumped(indent: Int = 0, space: Int = 0) = jump(this, indent, space)
 
 /**
@@ -536,7 +540,7 @@ fun List<Document>.surroundSeparate(
  * @see separateMap
  */
 @JvmOverloads
-fun <T> List<T>.surroundSeparateMap(
+fun <T> Collection<T>.surroundSeparateMap(
     emptiness: Document = empty,
     opening: Document = empty,
     sep: Document = commaSpace,
@@ -549,4 +553,44 @@ fun <T> List<T>.surroundSeparateMap(
     emptiness
 } else {
     separateMap(sep, f).grouped(group).surround(indent = indent, space = space, opening = opening, closing = closing)
+}
+
+open class SurroundSepMapBuilder<T> {
+    var map: (T) -> Document = { empty }
+    var list: Collection<T> = listOf()
+    var emptiness: Document = empty
+    var opening: Document = empty
+    var sep: Document = commaSpace
+    var closing: Document = empty
+    var group: Boolean = true
+    var indent: Int = 0
+    var space: Int = 0
+
+    fun build() = list.surroundSeparateMap(
+        opening = opening,
+        sep = sep,
+        closing = closing,
+        group = group,
+        indent = indent,
+        space = space,
+        f = map,
+    )
+
+    fun map(f: (T) -> Document) = also { map = f }
+    fun list(x: Collection<T>) = also { list = x }
+    fun emptiness(x: Document) = also { emptiness = x }
+    fun opening(x: Document) = also { opening = x }
+    fun sep(x: Document) = also { sep = x }
+    fun closing(x: Document) = also { closing = x }
+    fun group(x: Boolean) = also { group = x }
+    fun indent(x: Int) = also { indent = x }
+    fun space(x: Int) = also { space = x }
+}
+
+fun <T> reducer(seq: Collection<T>) = SurroundSepMapBuilder<T>().list(seq)
+
+class PPHelper {
+    val indent = 2
+    fun <T> withParens(seq: Collection<T>) = SurroundSepMapBuilder<T>().list(seq).opening(lparen).closing(rparen).indent(2)
+        .sep(commaSpace)
 }

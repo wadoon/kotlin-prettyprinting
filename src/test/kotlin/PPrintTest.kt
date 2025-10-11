@@ -2,9 +2,10 @@
  * kotlin-prettyprinting is licensed under the GNU General Public License Version 2
  * SPDX-License-Identifier: GPL-2.0-only
  */
+package io.github.wadoon.pp
+
 import com.google.common.truth.Truth
 import com.google.common.truth.Truth.assertThat
-import io.github.wadoon.pp.*
 import io.github.wadoon.pp.Engine.pretty
 import io.github.wadoon.pp.Engine.prettyQ
 import kotlin.test.Test
@@ -240,15 +241,17 @@ class PPrintTest {
         assertThat(jump(d)).isEqualTo(d.jumped())
     }
 
-    private fun assertPretty(d: Document, expected: String, width: Int = 40) {
-        assertThat(pretty(d, width = width)).isEqualTo(expected)
-        assertThat(prettyQ(d, width = width)).isEqualTo(expected)
-    }
-
-    private fun assertPretty(d: Document, width: Int = 40) = assertThat(pretty(d, width = width))
-
     @Test
     fun testConcatMap() {
         assertPretty(concat(words("a b c d")), "abcd")
     }
 }
+
+@JvmOverloads
+fun assertPretty(d: Document, expected: String, width: Int = 40) {
+    assertThat(pretty(d, width = width)).isEqualTo(expected)
+    assertThat(prettyQ(d, width = width)).isEqualTo(expected)
+}
+
+@JvmOverloads
+fun assertPretty(d: Document, width: Int = 40) = assertThat(pretty(d, width = width))

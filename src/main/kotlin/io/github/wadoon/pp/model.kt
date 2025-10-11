@@ -33,15 +33,24 @@ value class Requirement(val value: Int) {
     }
 
     /* Comparison between an integer with infinity and a normal integer. */
+    operator fun compareTo(y: Requirement) = compareTo(y.value)
+
+    /* Comparison between an integer with infinity and a normal integer. */
     operator fun compareTo(y: Int) = value - y // x<=ys
 }
 
+object JavaHelper {
+    @JvmStatic
+    fun isInfinity(x: Int) = infinity.value == x
+
+    @JvmStatic
+    fun plusReq(x: Int, y: Int) = (Requirement(x) + Requirement(y)).value
+
+    @JvmStatic
+    fun compareReq(x: Requirement, y: Requirement) = x.compareTo(y)
+}
+
 val infinity = Requirement(Int.MAX_VALUE)
-
-/* Printing blank space. This is used both internally (to emit indentation
-characters) and via the public combinator [blank]. */
-
-const val blank_length = 80
 
 /** The rendering engine maintains the following internal state. Its structure
  * is subject to change in future versions of the library. Nevertheless, it is
