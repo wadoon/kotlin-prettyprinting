@@ -6,14 +6,14 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "2.2.0"
-    id("org.jetbrains.dokka") version "2.0.0"
-    id("org.jetbrains.dokka-javadoc") version "2.1.0-Beta"
+    kotlin("jvm") version "2.2.20"
+    id("org.jetbrains.dokka") version "2.1.0"
+    id("org.jetbrains.dokka-javadoc") version "2.1.0"
     `maven-publish`
     signing
     jacoco
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
-    id("com.diffplug.spotless") version "7.2.1"
+    id("com.diffplug.spotless") version "8.0.0"
 }
 
 group = "io.github.wadoon"
@@ -26,7 +26,7 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-    testImplementation("com.google.truth:truth:1.4.4")
+    testImplementation("com.google.truth:truth:1.4.5")
 
     // dokkaPlugin("com.glureau:html-mermaid-dokka-plugin:0.6.0")
     // dokkaPlugin("org.jetbrains.dokka:mathjax-plugin:2.0.0")
