@@ -20,7 +20,7 @@ plugins {
 }
 
 group = "io.github.wadoon"
-version = "1.0"
+version = "1.0.1-SNAPSHOT"
 description = "Pretty-printing library in pure Kotlin"
 
 repositories {
