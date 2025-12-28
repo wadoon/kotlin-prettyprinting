@@ -6,18 +6,21 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "2.2.20"
+    kotlin("jvm") version "2.3.0"
+
+    id ("com.github.ben-manes.versions") version "0.53.0"
+
     id("org.jetbrains.dokka") version "2.1.0"
     id("org.jetbrains.dokka-javadoc") version "2.1.0"
     `maven-publish`
     signing
     jacoco
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
-    id("com.diffplug.spotless") version "8.0.0"
+    id("com.diffplug.spotless") version "8.1.0"
 }
 
 group = "io.github.wadoon"
-version = "1.0-SNAPSHOT"
+version = "1.0"
 description = "Pretty-printing library in pure Kotlin"
 
 repositories {
@@ -27,10 +30,6 @@ repositories {
 dependencies {
     testImplementation(kotlin("test"))
     testImplementation("com.google.truth:truth:1.4.5")
-
-    // dokkaPlugin("com.glureau:html-mermaid-dokka-plugin:0.6.0")
-    // dokkaPlugin("org.jetbrains.dokka:mathjax-plugin:2.0.0")
-    // dokkaHtmlPlugin("org.jetbrains.dokka:kotlin-as-java-plugin:2.0.0")
 }
 
 tasks.withType<Test> {
@@ -116,14 +115,7 @@ java {
 
 tasks.named<Jar>("javadocJar") {
     from(tasks.named("dokkaGenerateJavadoc"))
-    // from(tasks.named("dokkaGenerateHtml"))
 }
-
-/*tasks.named<Jar>("javadocJar") {
-    val dokkaJavadoc = tasks.named<DokkaGeneratePublicationTask>("dokkaGeneratePublicationJavadoc")
-    dependsOn(dokkaJavadoc)
-    from(dokkaJavadoc.flatMap { it.outputDirectory })
-}*/
 
 publishing {
     publications {

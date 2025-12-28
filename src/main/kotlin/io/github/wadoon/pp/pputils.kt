@@ -20,9 +20,7 @@ val empty = Document.Empty
  */
 fun char(c: Char) = Document.Char(c).also { require(c != '\n') }
 
-/**
- *
- */
+/** One whitespace ` `. */
 @JvmField
 val space = Document.Blank(1)
 
@@ -72,13 +70,11 @@ fun blank(n: Int) = if (n == 0) empty else Document.Blank(n)
 /** Avoid nesting [Document.IfFlat] in the left-hand side of [Document.IfFlat], as this
  * is redundant.*/
 
-fun ifflat(doc1: Document, doc2: Document): Document = when (doc1) {
-    is Document.IfFlat -> ifflat(doc1.doc1, doc2)
-    else -> Document.IfFlat(doc1, doc2)
-}
+fun ifflat(doc1: Document, doc2: Document): Document =
+    if (doc1 is Document.IfFlat) ifflat(doc1.doc1, doc2)
+    else Document.IfFlat(doc1, doc2)
 
 /** Adds [i] spaces if necessary, else hardline break.*/
-
 private fun internalBreak(i: Int) = Document.IfFlat(blank(i), hardline)
 
 /**
@@ -309,6 +305,10 @@ fun <A, B> Iterable<A>.foldli(accu: B, f: (Int, B, A) -> B): B = foldIndexed(acc
  * it goes down, effectively reversing the list again.
  */
 fun concat(docs: List<Document>) = docs.fold(empty, ::cat)
+
+/**
+ * @see concat
+ */
 fun concat(vararg docs: Document) = concat(docs.toList())
 
 /**
@@ -323,8 +323,14 @@ fun <T : Document> List<T>.joinToDocument(sep: Document): Document = foldli(empt
  */
 fun <T> List<T>.concatMap(f: (T) -> Document) = map(f).reduce(::cat)
 
+/**
+ *
+ */
 fun <T> List<T>.joinToDocument(sep: Document = empty, f: (T) -> Document) = separateMap(sep, f)
 
+/**
+ *
+ */
 fun <T> Collection<T>.separateMap(sep: Document = empty, f: (T) -> Document) = foldli(empty) { i, accu: Document, x: T ->
     if (i == 0) {
         f(x)
@@ -354,11 +360,9 @@ fun <T> T?.orEmpty(f: T.() -> Document): Document = this?.f() ?: empty
 fun <T> Document?.orEmpty(): Document = this ?: empty
 
 /** [lines] chops the string [s] into a list of lines, which are turned into documents. */
-
 fun lines(s: String) = s.split("\n").map { string(it) }
 
 /** [multilineTextblock] represents the given [s] text block using [break1] for `\n` */
-
 fun multilineTextblock(s: String) = lines(s).joinToDocument(break1)
 
 /** [split] splits the string [s] at every occurrence of a character
@@ -366,7 +370,6 @@ fun multilineTextblock(s: String) = lines(s).joinToDocument(break1)
  * turned into documents, and a list of documents is returned. No information
  * is lost: the concatenation of the documents yields the original string.
  */
-
 fun split(s: String, chars: (Char) -> Boolean): List<Document> {
     val d = arrayListOf<Document>()
     var lastIndex = 0
@@ -499,11 +502,11 @@ fun `infix`(n: Int, b: Int, op: Document, x: Document, y: Document) = prefix(n, 
  */
 fun Document.surround(opening: Document, closing: Document, indent: Int = 0, space: Int = 0) = group(
     opening +
-        nest(
-            indent,
-            (breakOrSpaces(space) + this) +
-                breakOrSpaces(space) + closing,
-        ),
+            nest(
+                indent,
+                (breakOrSpaces(space) + this) +
+                        breakOrSpaces(space) + closing,
+            ),
 )
 
 /**

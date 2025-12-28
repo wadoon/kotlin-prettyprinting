@@ -6,7 +6,6 @@
 
 package io.github.wadoon.pp
 
-import io.github.wadoon.pp.Document.IfFlat
 import java.io.PrintWriter
 import java.lang.Integer.max
 import java.lang.Integer.min
@@ -74,10 +73,10 @@ data class State(
     var column: Int = 0,
 ) {
     constructor(width: Int, ribbonFraction: Double) :
-        this(
-            width,
-            max(0, min(width, (width * (1.0 + ribbonFraction)).toInt())),
-        )
+            this(
+                width,
+                max(0, min(width, (width * (1.0 + ribbonFraction)).toInt())),
+            )
 }
 
 /** A custom document is defined by implementing the following methods. */
@@ -126,13 +125,13 @@ sealed class Document {
     object Empty : Document()
 
     /** [Char c] is a document that consists of the single character [c]. We
-     enforce the invariant that [c] is not a newline character. */
+    enforce the invariant that [c] is not a newline character. */
     data class Char(val char: kotlin.Char) : Document()
 
     /** [String s] is a document that consists of just the string [s]. We
-     assume, but do not check, that this string does not contain a newline
-     character. [String] is a special case of [FancyString], which takes up
-     less space in memory. */
+    assume, but do not check, that this string does not contain a newline
+    character. [String] is a special case of [FancyString], which takes up
+    less space in memory. */
     data class String(val s: kotlin.String) : Document()
 
     /** [FancyString] is a (portion of a) string that may contain fancy characters: color escape characters, UTF-8 or
@@ -227,11 +226,12 @@ tailrec fun Document.requirement(): Requirement = when (this) {
     is Document.String -> Requirement(this.s.length)
     is Document.FancyString -> Requirement(this.apparentLength)
     is Document.Blank -> Requirement(this.len)
-    /** In flattening mode, the Requirement of [IfFlat] is just the
-     Requirement of its flat version, [x]. */
-    /** The smart constructor [IfFlat] ensures that [IfFlat] is never nested
-     in the left-hand side of [IfFlat], so this recursive call is not a
-     problem; the function [requirement] has constant time complexity. */
+    /* In flattening mode, the Requirement of [IfFlat] is just the
+       Requirement of its flat version, [x].
+
+       The smart constructor [IfFlat] ensures that [IfFlat] is never nested
+       in the left-hand side of [IfFlat], so this recursive call is not a
+       problem; the function [requirement] has constant time complexity. */
     is Document.IfFlat -> doc1.requirement()
 
     // A hard line cannot be printed in flattening mode.
