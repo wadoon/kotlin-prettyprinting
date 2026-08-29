@@ -57,8 +57,10 @@ val infinity = Requirement(Int.MAX_VALUE)
 data class State(
     /** The line width. This parameter is fixed throughout the execution of the renderer. */
     val width: Int = 80,
+
     /** The ribbon width. This parameter is fixed throughout the execution of the renderer. */
     val ribbon: Int = 80,
+
     /** The number of blanks that were printed at the beginning of the current
      * line. This field is updated (only) when a hardline is emitted. It is
      * used (only) to determine whether the ribbon width constraint is
@@ -66,17 +68,27 @@ data class State(
     var lastIndent: Int = 0,
     /** The current line. This field is updated (only) when a hardline is
      * emitted. It is not used by the pretty-printing engine itself. */
+
     var line: Int = 0,
+
     /** The current column. This field must be updated whenever something is
      * sent to the output channel. It is used (only) to determine whether the
      * width constraint is respected. */
     var column: Int = 0,
+
+    /** The last printed character */
+    var lastChar: Char = 0.toChar(),
+
+    /**
+     * True iff since the last newline, only whitespace characters were printed.
+     */
+    var freshLine: Boolean = true,
 ) {
     constructor(width: Int, ribbonFraction: Double) :
-            this(
-                width,
-                max(0, min(width, (width * (1.0 + ribbonFraction)).toInt())),
-            )
+        this(
+            width,
+            max(0, min(width, (width * (1.0 + ribbonFraction)).toInt())),
+        )
 }
 
 /** A custom document is defined by implementing the following methods. */
@@ -101,10 +113,10 @@ interface CustomDocument {
      * output channel.
      *
      * @param s the current state of the renderer
-     * @param i the current indentation level
-     * @param b if flattening mode is on
+     * @param indent the current indentation level
+     * @param flatten if flattening mode is on
      */
-    fun pretty(o: PrintWriter, s: State, i: Int, b: Boolean)
+    fun pretty(o: StatefulPrintWriter, indent: Int, flatten: Boolean)
 
     /**
      * The method [compact] is used by the compact rendering algorithm. It has
@@ -125,13 +137,13 @@ sealed class Document {
     object Empty : Document()
 
     /** [Char c] is a document that consists of the single character [c]. We
-    enforce the invariant that [c] is not a newline character. */
+     enforce the invariant that [c] is not a newline character. */
     data class Char(val char: kotlin.Char) : Document()
 
     /** [String s] is a document that consists of just the string [s]. We
-    assume, but do not check, that this string does not contain a newline
-    character. [String] is a special case of [FancyString], which takes up
-    less space in memory. */
+     assume, but do not check, that this string does not contain a newline
+     character. [String] is a special case of [FancyString], which takes up
+     less space in memory. */
     data class String(val s: kotlin.String) : Document()
 
     /** [FancyString] is a (portion of a) string that may contain fancy characters: color escape characters, UTF-8 or

@@ -7,6 +7,7 @@
 
 package io.github.wadoon.pp
 
+import java.io.PrintWriter
 import java.util.*
 
 /**
@@ -23,6 +24,39 @@ fun char(c: Char) = Document.Char(c).also { require(c != '\n') }
 /** One whitespace ` `. */
 @JvmField
 val space = Document.Blank(1)
+
+/** */
+@JvmField
+val spaceIfNeeded: Document = Document.Custom(object : CustomDocument {
+    override val requirement: Requirement
+        get() = space.requirement()
+
+    override fun pretty(o: StatefulPrintWriter, indent: Int, flatten: Boolean) {
+        if (!Character.isWhitespace(o.state.lastChar)) {
+            Engine.pretty(o, indent, flatten, empty)
+        }
+    }
+
+    override fun compact(o: PrintWriter) {
+        Engine.compact(o, space)
+    }
+})
+
+@JvmField
+val clearline: Document = Document.Custom(object : CustomDocument {
+    override val requirement: Requirement
+        get() = hardline.requirement()
+
+    override fun pretty(o: StatefulPrintWriter, indent: Int, flatten: Boolean) {
+        if (!o.state.freshLine) {
+            Engine.pretty(o, indent, flatten, hardline)
+        }
+    }
+
+    override fun compact(o: PrintWriter) {
+        Engine.compact(o, hardline)
+    }
+})
 
 /**
  * Creates a simple string as a document. The length requirement is determined by its content.
@@ -70,9 +104,11 @@ fun blank(n: Int) = if (n == 0) empty else Document.Blank(n)
 /** Avoid nesting [Document.IfFlat] in the left-hand side of [Document.IfFlat], as this
  * is redundant.*/
 
-fun ifflat(doc1: Document, doc2: Document): Document =
-    if (doc1 is Document.IfFlat) ifflat(doc1.doc1, doc2)
-    else Document.IfFlat(doc1, doc2)
+fun ifflat(doc1: Document, doc2: Document): Document = if (doc1 is Document.IfFlat) {
+    ifflat(doc1.doc1, doc2)
+} else {
+    Document.IfFlat(doc1, doc2)
+}
 
 /** Adds [i] spaces if necessary, else hardline break.*/
 private fun internalBreak(i: Int) = Document.IfFlat(blank(i), hardline)
@@ -146,22 +182,15 @@ fun group(x: Document): Document {
 fun Document.grouped(g: Boolean = true) = if (g) group(this) else this
 
 /** */
-
 fun align(x: Document) = Document.Align(x.requirement(), x)
 
-/** [this] */
-
+/**
+ *
+ */
 fun Document.aligned() = Document.Align(requirement(), this)
 
 /** Adds a hook, which is called by the engine on printing. */
-
 fun Document.range(hook: (PointRange) -> Unit) = Document.Range(requirement(), hook, this)
-
-/** This function expresses the following invariant: if we are in flattening
- * mode, then we must be within bounds, i.e. the width and ribbon width
- * constraints must be respected. */
-//  @JvmOverloads
-// fun ok(state: State, flatten: Boolean) = !flatten || state.column <= state.width && state.column <= state.lastIndent + state.ribbon
 
 /** Left paren */
 @JvmField
@@ -502,11 +531,11 @@ fun `infix`(n: Int, b: Int, op: Document, x: Document, y: Document) = prefix(n, 
  */
 fun Document.surround(opening: Document, closing: Document, indent: Int = 0, space: Int = 0) = group(
     opening +
-            nest(
-                indent,
-                (breakOrSpaces(space) + this) +
-                        breakOrSpaces(space) + closing,
-            ),
+        nest(
+            indent,
+            (breakOrSpaces(space) + this) +
+                breakOrSpaces(space) + closing,
+        ),
 )
 
 /**

@@ -8,7 +8,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm") version "2.3.10"
 
-    id ("com.github.ben-manes.versions") version "0.53.0"
+    id("com.github.ben-manes.versions") version "0.53.0"
 
     id("org.jetbrains.dokka") version "2.1.0"
     id("org.jetbrains.dokka-javadoc") version "2.1.0"
@@ -20,7 +20,7 @@ plugins {
 }
 
 group = "io.github.wadoon"
-version = "1.0.1-SNAPSHOT"
+version = "1.1.0-SNAPSHOT"
 description = "Pretty-printing library in pure Kotlin"
 
 repositories {
