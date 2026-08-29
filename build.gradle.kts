@@ -8,19 +8,18 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm") version "2.4.10"
 
-    id("com.github.ben-manes.versions") version "0.61.0"
+    id("io.github.ben-manes.versions") version "0.61.0"
 
     id("org.jetbrains.dokka") version "2.2.0"
     id("org.jetbrains.dokka-javadoc") version "2.2.0"
     `maven-publish`
     signing
     jacoco
-    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
-    id("com.diffplug.spotless") version "8.10.0"
+    id("com.diffplug.spotless") version "8.10.1"
 }
 
 group = "io.github.wadoon"
-version = "1.1.0-SNAPSHOT"
+version = "1.1.0"
 description = "Pretty-printing library in pure Kotlin"
 
 repositories {
@@ -58,7 +57,7 @@ dokka {
 }
 
 jacoco {
-    toolVersion = "0.8.13"
+    toolVersion = "0.8.15"
 }
 
 tasks.test {
@@ -151,22 +150,6 @@ publishing {
                     url = "https://github.com/wadoon/kotlin-prettyprinting"
                 }
             }
-        }
-    }
-}
-
-nexusPublishing {
-    repositories {
-        create("central") {
-            nexusUrl = uri("https://ossrh-staging-api.central.sonatype.com/service/local/")
-            snapshotRepositoryUrl = uri("https://central.sonatype.com/repository/maven-snapshots/")
-
-            stagingProfileId.set("io.github.wadoon")
-            val user: String = project.properties.getOrDefault("ossrhUsername", "").toString()
-            val pwd: String = project.properties.getOrDefault("ossrhPassword", "").toString()
-
-            username.set(user)
-            password.set(pwd)
         }
     }
 }

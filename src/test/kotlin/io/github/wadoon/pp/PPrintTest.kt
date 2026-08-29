@@ -8,6 +8,7 @@ import com.google.common.truth.Truth
 import com.google.common.truth.Truth.assertThat
 import io.github.wadoon.pp.Engine.pretty
 import io.github.wadoon.pp.Engine.prettyQ
+import org.junit.jupiter.api.Assertions
 import kotlin.test.Test
 
 /**
@@ -245,10 +246,23 @@ class PPrintTest {
     fun testConcatMap() {
         assertPretty(concat(words("a b c d")), "abcd")
     }
+
+    @Test fun spaceIfNeeded() {
+        assertPretty(spaceIfNeeded, "")
+
+        assertPretty(langle + spaceIfNeeded, "< ")
+
+        assertPretty(space + spaceIfNeeded, " ")
+
+        assertPretty(space + rbrace + spaceIfNeeded, " } ")
+
+        assertPretty(space + lbrace + hardline + spaceIfNeeded + rbrace, " {\n}")
+    }
 }
 
 @JvmOverloads
 fun assertPretty(d: Document, expected: String, width: Int = 40) {
+    Assertions.assertEquals(expected, pretty(d, width = width))
     assertThat(pretty(d, width = width)).isEqualTo(expected)
     assertThat(prettyQ(d, width = width)).isEqualTo(expected)
 }

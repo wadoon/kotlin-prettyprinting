@@ -5,8 +5,7 @@
 package io.github.wadoon.pp
 
 import io.github.wadoon.pp.Engine.pretty
-import java.io.PrintWriter
-import java.io.StringWriter
+import java.io.*
 import java.util.*
 
 /** The pretty rendering engine.
@@ -33,19 +32,22 @@ object Engine {
     private data class KCons(val indent: Int, val flatten: Boolean, val doc: Document, val cont: Continuation) : Continuation()
     private data class KRange(val hook: (PointRange) -> Unit, val start: Point, val cont: Continuation) : Continuation()
 
-    private fun proceed(output: PrintWriter, state: State, x: Continuation) {
+    private fun proceed(output: StatefulPrintWriter, x: Continuation) {
         when (x) {
             is KNil -> Unit
-            is KCons -> pretty(output, state, x.indent, x.flatten, x.doc, x.cont)
+
+            is KCons -> pretty(output, x.indent, x.flatten, x.doc, x.cont)
+
             is KRange -> {
                 var y = x
                 while (y is KRange) {
+                    val state = output.state
                     val finish = Point(state.line, state.column)
                     y.hook(PointRange(y.start, finish))
                     y = y.cont
                 }
                 if (y is KCons) {
-                    pretty(output, state, y.indent, y.flatten, y.doc, y.cont)
+                    pretty(output, y.indent, y.flatten, y.doc, y.cont)
                 }
             }
         }
@@ -54,15 +56,16 @@ object Engine {
     @JvmStatic
     fun prettyQ(doc: Document, width: Int = 80, rfrac: Double = 1.0, indent: Int = 0, flatten: Boolean = false): String =
         StringWriter().let {
-            prettyQ(doc, PrintWriter(it), State(width, rfrac), indent, flatten)
+            prettyQ(doc, StatefulPrintWriter(it, State(width, rfrac)), indent, flatten)
             it.toString()
         }
 
     /**
      *
      */
-    @JvmStatic @JvmOverloads
-    fun prettyQ(doc: Document, output: PrintWriter, state: State = State(80), indent: Int = 0, flatten: Boolean = false) {
+    @JvmStatic
+    @JvmOverloads
+    fun prettyQ(doc: Document, output: StatefulPrintWriter, indent: Int = 0, flatten: Boolean = false) {
         val queue = ArrayDeque<Continuation>(1024)
         queue.add(KCons(indent, flatten, doc, KNil))
 
@@ -72,30 +75,24 @@ object Engine {
 
         fun handle(indent: Int, flatten: Boolean, doc: Document, cont: Continuation) = when (doc) {
             is Document.Empty -> {}
+
             is Document.Char -> {
                 output.print(doc.char)
-                state.column += 1
                 proceed(cont)
             }
 
             is Document.String -> {
                 output.print(doc.s.take(doc.s.length))
-                state.column += doc.s.length
-                /* assert (ok state flatten); */
                 proceed(cont)
             }
 
             is Document.FancyString -> {
                 output.print(doc.s.substring(doc.ofs, doc.len))
-                state.column += doc.apparentLength
-                /* assert (ok state flatten); */
                 proceed(cont)
             }
 
             is Document.Blank -> {
                 output.print(" ".repeat(doc.len))
-                state.column += doc.len
-                /* assert (ok state flatten); */
                 proceed(cont)
             }
 
@@ -107,9 +104,6 @@ object Engine {
                 /* Emit a hardline. */
                 output.print("\n")
                 output.print(" ".repeat(indent))
-                state.line += 1
-                state.column = indent
-                state.lastIndent = indent
                 proceed(cont)
             }
 
@@ -138,6 +132,7 @@ object Engine {
                  * have a choice of entering flattening mode. We enter this mode only
                  * if we know that this group fits on this line without violating the
                  * width or ribbon width constraints. Thus, we never backtrack. */
+                val state = output.state
                 val column = Requirement(state.column) + doc.req
                 val flatten2 = flatten || (column <= state.width && column <= state.lastIndent + state.ribbon)
                 proceed(KCons(indent, flatten2, doc.doc, cont))
@@ -150,19 +145,15 @@ object Engine {
             since the current line began, then this could cause [indent] to
             decrease. */
                 /* assert (state.column > state.last_indent); */
-                proceed(KCons(state.column, flatten, doc.doc, cont))
+                proceed(KCons(output.state.column, flatten, doc.doc, cont))
 
             is Document.Range -> {
-                val start = Point(state.line, state.column)
-                proceed(KCons(state.column, flatten, doc.doc, KRange(doc.fn, start, cont)))
+                val start = Point(output.state.line, output.state.column)
+                proceed(KCons(output.state.column, flatten, doc.doc, KRange(doc.hook, start, cont)))
             }
 
             is Document.Custom -> {
-                /* Invoke the document's custom rendering function. */
-                doc.doc.pretty(output, state, indent, flatten)
-                /* Sanity check. */
-                // assert(ok state flatten);
-                /* __continue. */
+                doc.doc.pretty(output, indent, flatten)
                 proceed(cont)
             }
         }
@@ -170,13 +161,11 @@ object Engine {
         while (queue.isNotEmpty()) {
             when (val x = queue.pop()) {
                 is KNil -> return
-                is KCons -> {
-                    handle(x.indent, x.flatten, x.doc, x.cont)
-                    // queue.addLast(x.cont)
-                }
+
+                is KCons -> handle(x.indent, x.flatten, x.doc, x.cont)
 
                 is KRange -> {
-                    val finish = Point(state.line, state.column)
+                    val finish = Point(output.state.line, output.state.column)
                     x.hook(PointRange(x.start, finish))
                     proceed(x.cont)
                 }
@@ -188,36 +177,30 @@ object Engine {
      *
      */
     @JvmStatic
-    private tailrec fun pretty(output: PrintWriter, state: State, indent: Int, flatten: Boolean, doc: Document, cont: Continuation) {
+    private tailrec fun pretty(output: StatefulPrintWriter, indent: Int, flatten: Boolean, doc: Document, cont: Continuation) {
+        val state = output.state
         when (doc) {
-            is Document.Empty -> proceed(output, state, cont)
-            is Document.Char,
-            -> {
+            is Document.Empty -> proceed(output, cont)
+
+            is Document.Char -> {
                 output.print(doc.char)
-                state.column += 1
-                /* assert (ok state flatten); */
-                proceed(output, state, cont)
+                proceed(output, cont)
             }
 
             is Document.String -> {
-                output.print(doc.s.take(doc.s.length))
-                state.column += doc.s.length
-                /* assert (ok state flatten); */
-                proceed(output, state, cont)
+                val s = doc.s.take(doc.s.length)
+                output.print(s)
+                proceed(output, cont)
             }
 
             is Document.FancyString -> {
                 output.print(doc.s.substring(doc.ofs, doc.len))
-                state.column += doc.apparentLength
-                /* assert (ok state flatten); */
-                proceed(output, state, cont)
+                proceed(output, cont)
             }
 
             is Document.Blank -> {
                 output.print(" ".repeat(doc.len))
-                state.column += doc.len
-                /* assert (ok state flatten); */
-                proceed(output, state, cont)
+                proceed(output, cont)
             }
 
             is Document.HardLine -> {
@@ -228,22 +211,18 @@ object Engine {
                 /* Emit a hardline. */
                 output.print("\n")
                 output.print(" ".repeat(indent))
-                state.line += 1
-                state.column = indent
-                state.lastIndent = indent
-                proceed(output, state, cont)
+                proceed(output, cont)
             }
 
             is Document.IfFlat -> {
                 // Pick an appropriate sub-document, based on the current flattening mode.
-                pretty(output, state, indent, flatten, if (flatten) doc.doc1 else doc.doc2, cont)
+                pretty(output, indent, flatten, if (flatten) doc.doc1 else doc.doc2, cont)
             }
 
             is Document.Cat ->
                 /* Push the second document onto the continuation. */
                 pretty(
                     output,
-                    state,
                     indent,
                     flatten,
                     doc.doc1,
@@ -251,7 +230,7 @@ object Engine {
                 )
 
             is Document.Nest ->
-                pretty(output, state, indent + doc.j, flatten, doc.doc, cont)
+                pretty(output, indent + doc.j, flatten, doc.doc, cont)
 
             is Document.Group -> {
                 /* If we already are in flattening mode, stay in flattening mode; we
@@ -260,8 +239,8 @@ object Engine {
                  * if we know that this group fits on this line without violating the
                  * width or ribbon width constraints. Thus, we never backtrack. */
                 val column = Requirement(state.column) + doc.req
-                val flatten2 = flatten || column <= state.width && column <= state.lastIndent + state.ribbon
-                pretty(output, state, indent, flatten2, doc.doc, cont)
+                val flatten2 = flatten || ((column <= state.width) && (column <= (state.lastIndent + state.ribbon)))
+                pretty(output, indent, flatten2, doc.doc, cont)
             }
 
             is Document.Align ->
@@ -270,23 +249,18 @@ object Engine {
                  * to [state.column] increases it. However, if [nest] has been used
                  * since the current line began, then this could cause [indent] to
                  * decrease. */
-                /* assert (state.column > state.last_indent); */
-                pretty(output, state, state.column, flatten, doc.doc, cont)
+                pretty(output, output.state.column, flatten, doc.doc, cont)
 
             is Document.Range -> {
                 val start = Point(state.line, state.column)
-                pretty(output, state, indent, flatten, doc.doc, KRange(doc.fn, start, cont))
+                pretty(output, indent, flatten, doc.doc, KRange(doc.hook, start, cont))
             }
-            //        is Custom c
-            //      -> {
-            /* Invoke the document's custom rendering function. */
-            //        c#pretty output state indent flatten;
-            /* Sanity check. */
-            //      assert(ok state flatten);
-            /* __continue. */
-            //    __continue(output, state, cont)
-            // }
-            is Document.Custom -> TODO()
+
+            is Document.Custom -> {
+                val cd = doc.doc
+                cd.pretty(output, indent, flatten)
+                proceed(output, cont)
+            }
         }
     }
 
@@ -297,18 +271,19 @@ object Engine {
      * through a custom document cannot be tail calls.
      */
     @JvmStatic
-    fun pretty(output: PrintWriter, state: State, indent: Int, flatten: Boolean, doc: Document) =
-        pretty(output, state, indent, flatten, doc, KNil)
+    fun pretty(output: StatefulPrintWriter, indent: Int, flatten: Boolean, doc: Document) = pretty(output, indent, flatten, doc, KNil)
 
-    @JvmStatic @JvmOverloads
+    @JvmStatic
+    @JvmOverloads
     fun pretty(doc: Document, width: Int = 80, rfrac: Double = 1.0, indent: Int = 0, flatten: Boolean = false): String =
         pretty(doc, State(width, rfrac), indent, flatten)
 
-    @JvmStatic @JvmOverloads
+    @JvmStatic
+    @JvmOverloads
     fun pretty(doc: Document, state: State, indent: Int = 0, flatten: Boolean = false): String {
         val sw = StringWriter()
-        val output = PrintWriter(sw)
-        pretty(output, state, indent, flatten, doc, KNil)
+        val output = StatefulPrintWriter(sw, state)
+        pretty(output, indent, flatten, doc, KNil)
         return sw.toString()
     }
 
@@ -317,10 +292,12 @@ object Engine {
         compact(output, cont.first(), cont.subList(1, cont.lastIndex))
     }
 
-    @JvmStatic @JvmOverloads
+    @JvmStatic
+    @JvmOverloads
     tailrec fun compact(output: PrintWriter, doc: Document, cont: List<Document> = listOf()) {
         when (doc) {
             is Document.Empty -> proceedCompact(output, cont)
+
             is Document.Char -> {
                 output.print(doc.char)
                 proceedCompact(output, cont)
@@ -351,15 +328,56 @@ object Engine {
                 proceedCompact(output, listOf(doc.doc1, doc.doc2) + cont)
 
             is Document.IfFlat -> compact(output, doc.doc1, cont)
+
             is Document.Nest -> compact(output, doc.doc, cont)
+
             is Document.Group -> compact(output, doc.doc, cont)
+
             is Document.Align -> compact(output, doc.doc, cont)
+
             is Document.Range -> compact(output, doc.doc, cont)
-            // is document.Custom ->
-            //    /* Invoke the document's custom rendering function. */
-            //    c#compact output;
-            // continue output cont
-            is Document.Custom -> TODO()
+
+            is Document.Custom -> {
+                doc.doc.compact(output)
+                proceedCompact(output, cont)
+            }
         }
     }
 }
+
+/**
+ * Tracking the current
+ */
+class StatefulWriter(val out: Writer, val state: State) : Writer() {
+    override fun close() {
+        out.close()
+    }
+
+    override fun flush() {
+        out.flush()
+    }
+
+    override fun write(cbuf: CharArray, off: Int, len: Int) {
+        for (i in off until off + len) {
+            val ch = cbuf[i]
+            state.lastChar = ch
+            if (ch == '\n') {
+                state.line += 1
+                state.column = 0
+                state.freshLine = true
+                state.lastIndent = 0
+            } else if (Character.isWhitespace(ch)) {
+                state.column += 1
+                if (state.freshLine) {
+                    state.lastIndent += 1
+                }
+            } else {
+                state.column += 1
+                state.freshLine = false
+            }
+        }
+        out.write(cbuf, off, len)
+    }
+}
+
+class StatefulPrintWriter(out: Writer, val state: State) : PrintWriter(StatefulWriter(out, state))

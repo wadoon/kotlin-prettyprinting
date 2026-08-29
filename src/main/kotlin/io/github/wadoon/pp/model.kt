@@ -57,8 +57,10 @@ val infinity = Requirement(Int.MAX_VALUE)
 data class State(
     /** The line width. This parameter is fixed throughout the execution of the renderer. */
     val width: Int = 80,
+
     /** The ribbon width. This parameter is fixed throughout the execution of the renderer. */
     val ribbon: Int = 80,
+
     /** The number of blanks that were printed at the beginning of the current
      * line. This field is updated (only) when a hardline is emitted. It is
      * used (only) to determine whether the ribbon width constraint is
@@ -66,17 +68,27 @@ data class State(
     var lastIndent: Int = 0,
     /** The current line. This field is updated (only) when a hardline is
      * emitted. It is not used by the pretty-printing engine itself. */
+
     var line: Int = 0,
+
     /** The current column. This field must be updated whenever something is
      * sent to the output channel. It is used (only) to determine whether the
      * width constraint is respected. */
     var column: Int = 0,
+
+    /** The last printed character */
+    var lastChar: Char = 0.toChar(),
+
+    /**
+     * True iff since the last newline, only whitespace characters were printed.
+     */
+    var freshLine: Boolean = true,
 ) {
     constructor(width: Int, ribbonFraction: Double) :
-            this(
-                width,
-                max(0, min(width, (width * (1.0 + ribbonFraction)).toInt())),
-            )
+        this(
+            width,
+            max(0, min(width, (width * (1.0 + ribbonFraction)).toInt())),
+        )
 }
 
 /** A custom document is defined by implementing the following methods. */
@@ -100,11 +112,11 @@ interface CustomDocument {
      * be updated in a manner that is consistent with what is sent to the
      * output channel.
      *
-     * @param s the current state of the renderer
-     * @param i the current indentation level
-     * @param b if flattening mode is on
+     * @param o the current output writer with the  of the renderer
+     * @param indent the current indentation level
+     * @param flatten if flattening mode is on
      */
-    fun pretty(o: PrintWriter, s: State, i: Int, b: Boolean)
+    fun pretty(o: StatefulPrintWriter, indent: Int, flatten: Boolean)
 
     /**
      * The method [compact] is used by the compact rendering algorithm. It has
@@ -113,25 +125,20 @@ interface CustomDocument {
 }
 
 /**
- * Here is the algebraic data type of documents. It is analogous to Daan
- * Leijen's version, but the binary constructor [Union] is replaced with
- * the unary constructor [Group], and the constant [Line] is replaced with
- * more general constructions, namely [IfFlat], which provides alternative
- * forms depending on the current flattening mode, and [HardLine], which
- * represents a newline character, and causes a failure in flattening mode.
- * */
+ * Here is the algebraic data type of documents.
+ */
 sealed class Document {
     /** [Empty] is the empty document. */
     object Empty : Document()
 
-    /** [Char c] is a document that consists of the single character [c]. We
-    enforce the invariant that [c] is not a newline character. */
+    /** [Char c] is a document that consists of the single character [char]. We
+     enforce the invariant that [char] is not a newline character. */
     data class Char(val char: kotlin.Char) : Document()
 
     /** [String s] is a document that consists of just the string [s]. We
-    assume, but do not check, that this string does not contain a newline
-    character. [String] is a special case of [FancyString], which takes up
-    less space in memory. */
+     assume, but do not check, that this string does not contain a newline
+     character. [String] is a special case of [FancyString], which takes up
+     less space in memory. */
     data class String(val s: kotlin.String) : Document()
 
     /** [FancyString] is a (portion of a) string that may contain fancy characters: color escape characters, UTF-8 or
@@ -176,16 +183,14 @@ sealed class Document {
      * Storing this information at other nodes allows the function [requirement]
      * to operate in constant time. This means that the bottom-up computation of
      * requirements takes linear time.
-     */
-
-    /**
+     *
      * [Cat] is the concatenation of the documents [doc1] and
      * [doc2]. The space Requirement [req] is the sum of the requirements of
      * [doc1] and [doc2].
      */
     data class Cat(val req: Requirement, val doc1: Document, val doc2: Document) : Document()
 
-    /** [Nest (req, j, doc)] is the document [doc], in which the indentation
+    /** [Nest] is the document [doc], in which the indentation
      * level has been increased by [j], that is, in which [j] blanks have been
      * inserted after every newline character. The space Requirement [req] is
      * the same as the Requirement of [doc].
@@ -212,20 +217,24 @@ sealed class Document {
      * function [hook] is applied to the range that is occupied by [doc] in the
      * output.
      */
-    data class Range(val req: Requirement, val fn: (PointRange) -> Unit, val doc: Document) : Document()
+    data class Range(val req: Requirement, val hook: (PointRange) -> Unit, val doc: Document) : Document()
 
     /** [Custom] is a document whose appearance is user-defined. */
     data class Custom(val doc: CustomDocument) : Document()
 }
 
 /** Retrieving or computing the space Requirement of a document in flattening mode. */
-@Suppress("RemoveRedundantQualifierName")
 tailrec fun Document.requirement(): Requirement = when (this) {
     is Document.Empty -> Requirement(0)
+
     is Document.Char -> Requirement(1)
+
     is Document.String -> Requirement(this.s.length)
+
     is Document.FancyString -> Requirement(this.apparentLength)
+
     is Document.Blank -> Requirement(this.len)
+
     /* In flattening mode, the Requirement of [IfFlat] is just the
        Requirement of its flat version, [x].
 
@@ -241,9 +250,14 @@ tailrec fun Document.requirement(): Requirement = when (this) {
      * node is constructed -- to allow us to answer in constant time
      * here. */
     is Document.Cat -> this.req
+
     is Document.Nest -> this.req
+
     is Document.Group -> this.req
+
     is Document.Align -> this.req
+
     is Document.Range -> this.req
+
     is Document.Custom -> this.doc.requirement
 }
