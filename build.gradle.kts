@@ -6,17 +6,17 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "2.3.10"
+    kotlin("jvm") version "2.4.10"
 
-    id("com.github.ben-manes.versions") version "0.53.0"
+    id("com.github.ben-manes.versions") version "0.61.0"
 
-    id("org.jetbrains.dokka") version "2.1.0"
-    id("org.jetbrains.dokka-javadoc") version "2.1.0"
+    id("org.jetbrains.dokka") version "2.2.0"
+    id("org.jetbrains.dokka-javadoc") version "2.2.0"
     `maven-publish`
     signing
     jacoco
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
-    id("com.diffplug.spotless") version "8.2.1"
+    id("com.diffplug.spotless") version "8.10.0"
 }
 
 group = "io.github.wadoon"
